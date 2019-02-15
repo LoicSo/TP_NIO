@@ -35,6 +35,9 @@ public class NioClient {
 	byte[] first;
 	byte[] digest;
 	int nloops;
+	
+	private Reader r;
+	private Writer w;
 
 	/**
 	 * NIO client initialization
@@ -59,6 +62,9 @@ public class NioClient {
 		// connect event, when the connection will be established
 		scKey = sc.register(selector, SelectionKey.OP_CONNECT);
 
+		r = new Reader(scKey);
+		w = new Writer(scKey);
+		
 		// request a connection to the given server and port
 		InetAddress addr;
 		addr = InetAddress.getByName(serverName);
@@ -128,14 +134,8 @@ public class NioClient {
 	private void handleRead(SelectionKey key) throws IOException {
 		assert (this.scKey == key);
 		assert (sc == key.channel());
-
-		// Let's read the message
-		 inBuffer = ByteBuffer.allocate(128);
-		sc.read(inBuffer);
 		
-		byte[] data = new byte[inBuffer.position()];
-		inBuffer.rewind();
-		inBuffer.get(data);
+		byte[] data = r.handleRead(key);
 
 		// Let's make sure we read the message we sent to the server
 		byte[] md5 = md5(data);
@@ -163,10 +163,8 @@ public class NioClient {
 	private void handleWrite(SelectionKey key) throws IOException {
 		assert (this.scKey == key);
 		assert (sc == key.channel());
-		// write the output buffer to the socket channel
-		sc.write(outBuffer);
-		// remove the write interest
-		key.interestOps(SelectionKey.OP_READ);
+		
+		w.handleWrite(key);
 	}
 
 	/**
@@ -177,10 +175,11 @@ public class NioClient {
 	public void send(byte[] data, int offset, int count) {
 		// this is not optimized at all, we should try to reuse the same ByteBuffer
 		outBuffer = ByteBuffer.wrap(data, offset, count);
-
+		
 		// register a write interests to know when there is room to write
 		// in the socket channel.
 		SelectionKey key = sc.keyFor(selector);
+		key.attach(outBuffer);
 		key.interestOps(SelectionKey.OP_WRITE);
 	}
 
