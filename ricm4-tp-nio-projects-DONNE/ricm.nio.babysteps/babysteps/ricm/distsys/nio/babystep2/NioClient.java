@@ -1,16 +1,13 @@
 package ricm.distsys.nio.babystep2;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.nio.charset.Charset;
-import java.security.MessageDigest;
 import java.util.Iterator;
 
 /**
@@ -26,14 +23,9 @@ public class NioClient {
 	// Java NIO selector
 	private Selector selector;
 
-	// ByteBuffer for outgoing messages
-	ByteBuffer outBuffer = ByteBuffer.allocate(128);
-	// ByteBuffer for ingoing messages
-	ByteBuffer inBuffer = ByteBuffer.allocate(128);
-
 	// The message to send to the server
 	byte[] first;
-	byte[] digest;
+	
 	int nloops;
 	
 	private Reader r;
@@ -62,8 +54,8 @@ public class NioClient {
 		// connect event, when the connection will be established
 		scKey = sc.register(selector, SelectionKey.OP_CONNECT);
 
-		r = new Reader(scKey);
 		w = new Writer(scKey);
+		r = new ReaderClient(scKey, w);
 		
 		// request a connection to the given server and port
 		InetAddress addr;
@@ -122,8 +114,9 @@ public class NioClient {
 		key.interestOps(SelectionKey.OP_READ);
 
 		// when connected, send a message to the server
-		digest = md5(first);
-		send(first, 0, first.length);
+		byte[] digest = Reader.md5(first);
+		r.setDigest(digest);
+		w.sendMsg(first);
 	}
 
 	/**
@@ -135,24 +128,7 @@ public class NioClient {
 		assert (this.scKey == key);
 		assert (sc == key.channel());
 		
-		byte[] data = r.handleRead(key);
-
-		// Let's make sure we read the message we sent to the server
-		byte[] md5 = md5(data);
-		if (!md5check(digest, md5)) 
-			System.out.println("Checksum Error!");
-		
-		// Let's print the message we received, assuming it is a string
-		// in UTF-8 encoding, since it is the format of our first message
-		// we sent to the server.
-		String msg = new String(data, Charset.forName("UTF-8"));
-		System.out.println("NioClient received msg["+nloops+"]: " + msg);
-
-		nloops++;
-		if (nloops < 100) {
-			// send back the received message
-			send(data, 0, data.length);
-		}
+		r.handleRead(key);
 	}
 
 	/**
@@ -165,22 +141,6 @@ public class NioClient {
 		assert (sc == key.channel());
 		
 		w.handleWrite(key);
-	}
-
-	/**
-	 * Send the given data
-	 * 
-	 * @param data: the byte array that should be sent
-	 */
-	public void send(byte[] data, int offset, int count) {
-		// this is not optimized at all, we should try to reuse the same ByteBuffer
-		outBuffer = ByteBuffer.wrap(data, offset, count);
-		
-		// register a write interests to know when there is room to write
-		// in the socket channel.
-		SelectionKey key = sc.keyFor(selector);
-		key.attach(outBuffer);
-		key.interestOps(SelectionKey.OP_WRITE);
 	}
 
 	public static void main(String args[]) throws IOException {
@@ -206,40 +166,5 @@ public class NioClient {
 		nc.loop();
 	}
 
-	/*
-	 * Wikipedia: The MD5 message-digest algorithm is a widely used hash function
-	 * producing a 128-bit hash value. Although MD5 was initially designed to be
-	 * used as a cryptographic hash function, it has been found to suffer from
-	 * extensive vulnerabilities. It can still be used as a checksum to verify data
-	 * integrity, but only against unintentional corruption. It remains suitable for
-	 * other non-cryptographic purposes, for example for determining the partition
-	 * for a particular key in a partitioned database.
-	 */
-	public static byte[] md5(byte[] bytes) throws IOException {
-		byte[] digest = null;
-		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			md.update(bytes, 0, bytes.length);
-			digest = md.digest();
-		} catch (Exception ex) {
-			throw new IOException(ex);
-		}
-		return digest;
-	}
-
-	public static boolean md5check(byte[] d1, byte[] d2) {
-		if (d1.length != d2.length)
-			return false;
-		for (int i = 0; i < d1.length; i++)
-			if (d1[i] != d2[i])
-				return false;
-		return true;
-	}
-
-	public static void echo(PrintStream ps, byte[] digest) {
-		for (int i = 0; i < digest.length; i++)
-			ps.print(digest[i] + ", ");
-		ps.println();
-	}
 
 }

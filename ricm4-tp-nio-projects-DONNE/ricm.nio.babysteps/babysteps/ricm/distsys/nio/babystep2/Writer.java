@@ -7,15 +7,36 @@ import java.nio.channels.SocketChannel;
 
 public class Writer {
 
+	private final int NBBYTELEN = 4;
+	
 	SelectionKey key;
+	
+	private enum State {LEN, MSG};
+	private State state;
+	
+	private int lengthMsg;	// Longueur du message à lire
+	private int count;		// Nombre d'octet lu
+	
+	ByteBuffer buffLength;	// Buffer pour la longueur du message
+	ByteBuffer buffMsg;		// Buffer pour le message
 
 	public Writer(SelectionKey key) {
 		this.key = key;
+		state = State.LEN;
+		count = 0;
+		buffLength = ByteBuffer.allocate(NBBYTELEN);
 	}
 
-	// Que mettre dans sendMsg ???
 	public void sendMsg(byte[] msg) {
-
+		
+		buffMsg = ByteBuffer.wrap(msg, 0, msg.length);
+		
+		lengthMsg = buffMsg.capacity();
+		buffLength.rewind();
+		buffLength.putInt(lengthMsg);
+		buffLength.rewind();
+		
+		key.interestOps(SelectionKey.OP_WRITE | SelectionKey.OP_READ);
 	}
 
 	public void handleWrite(SelectionKey key) throws IOException {
@@ -23,29 +44,33 @@ public class Writer {
 		// need to send something
 		SocketChannel sc = (SocketChannel) key.channel();
 
-		// get back the buffer that we must send
-		ByteBuffer buffer = (ByteBuffer) key.attachment();
-		
-		int length = buffer.capacity();
-		ByteBuffer bLen = ByteBuffer.allocate(4);
-		bLen.putInt(length);
-		bLen.rewind();
-		
-		int count = 0;
 		int n;
-		
-		// Write écrit 0 octets !!!
-		while(count < bLen.capacity()) {
-			n = sc.write(bLen);
+		switch(state) {
+		case LEN:
+			n = sc.write(buffLength);
 			count += n;
-		}
-		
-		count = 0;
-		while(count < length) {
-			n = sc.write(buffer);
+			
+			if(count == NBBYTELEN) {
+				count = 0;
+				
+				state = State.MSG;
+			}
+			key.interestOps(SelectionKey.OP_WRITE);
+			break;
+			
+		case MSG:
+			n = sc.write(buffMsg);
 			count += n;
+			
+			if(count == lengthMsg) {
+				count = 0;
+				
+				state = State.LEN;
+				key.interestOps(SelectionKey.OP_READ);
+			} else {
+				key.interestOps(SelectionKey.OP_WRITE);
+			}
+			break;
 		}
-		
-		key.interestOps(SelectionKey.OP_READ);
 	}
 }

@@ -9,7 +9,6 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
-import java.nio.charset.Charset;
 import java.util.Iterator;
 
 /**
@@ -104,8 +103,8 @@ public class NioServer {
 		// in order to know when there are bytes to read
 		SelectionKey scKey = sc.register(this.selector, SelectionKey.OP_READ);
 		
-		r = new Reader(scKey);
 		w = new Writer(scKey);
+		r = new ReaderServer(scKey, w);
 
 	}
 
@@ -128,15 +127,7 @@ public class NioServer {
 		assert (sscKey != key);
 		assert (ssc != key.channel());
 		
-		// get the socket channel for the client who sent something
-		SocketChannel sc = (SocketChannel) key.channel();
-		
-		byte[] data = r.handleRead(key);
-		
-		String msg = new String(data, Charset.forName("UTF-8"));
-		System.out.println("NioServer received: " + msg);
-		
-		send(sc, data, 0, data.length);
+		r.handleRead(key);
 	}
 
 	/**
