@@ -1,4 +1,4 @@
-package ricm.distsys.nio.babystep2;
+package ricm.distsys.nio.babystep3;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -27,6 +27,8 @@ public class NioServer {
 	
 	private Reader r;
 	private Writer w;
+	
+	static int nbClient = 0; // Number of client connected
 
 	/**
 	 * NIO server initialization
@@ -103,7 +105,10 @@ public class NioServer {
 		SelectionKey scKey = sc.register(this.selector, SelectionKey.OP_READ);
 		
 		w = new Writer(scKey);
-		r = new ReaderServer(scKey, w);
+		r = new ReaderServer(scKey, w, nbClient++);
+		
+		Channel channel = new Channel(r,w);
+		scKey.attach(channel);
 
 	}
 
@@ -126,7 +131,8 @@ public class NioServer {
 		assert (sscKey != key);
 		assert (ssc != key.channel());
 		
-		r.handleRead(key);
+		Channel channel = (Channel) key.attachment();
+		channel.handleRead(key);
 	}
 
 	/**
@@ -137,9 +143,10 @@ public class NioServer {
 	private void handleWrite(SelectionKey key) throws IOException {
 		assert (sscKey != key);
 		assert (ssc != key.channel());
-
-		w.handleWrite(key);
-	}
+		
+		Channel channel = (Channel) key.attachment();
+		channel.handleWrite(key);
+		}
 
 	public static void main(String args[]) throws IOException {
 		int serverPort = DEFAULT_SERVER_PORT;
