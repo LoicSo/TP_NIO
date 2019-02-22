@@ -7,7 +7,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.security.MessageDigest;
 
-public abstract class Reader {
+public class Reader {
 
 	private final int NBBYTELEN = 4;
 	
@@ -75,15 +75,12 @@ public abstract class Reader {
 				
 				state = State.LEN;
 				
-				processMsg(data);
 			} else {
 				key.interestOps(SelectionKey.OP_READ);
 			}
 			break;
 		}
 	}
-
-	public abstract void processMsg(byte[] msg) throws IOException;
 	
 	/*
 	 * Wikipedia: The MD5 message-digest algorithm is a widely used hash function
