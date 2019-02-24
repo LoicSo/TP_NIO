@@ -13,15 +13,28 @@ import java.util.Iterator;
 import ricm.channels.IBroker;
 import ricm.channels.IBrokerListener;
 
-public class Broker implements IBroker {
+public class Broker implements IBroker, Runnable {
 	
 	String host;
 	IBrokerListener l;
 	Selector selector;
 	
-	public Broker(String host) throws IOException {
+	public Broker(String host) {
 		this.host = host;
-		selector = SelectorProvider.provider().openSelector();
+		try {
+			selector = SelectorProvider.provider().openSelector();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public void run() {
+		try {
+			loop();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public void loop() throws IOException {
@@ -65,7 +78,7 @@ public class Broker implements IBroker {
 		SocketChannel sc = ssc.accept();
 		sc.configureBlocking(false);
 		
-		SelectionKey scKey = sc.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+		SelectionKey scKey = sc.register(selector, SelectionKey.OP_READ);
 		Channel c = new Channel(scKey);
 		scKey.attach(c);
 		l.accepted(c);
@@ -90,7 +103,7 @@ public class Broker implements IBroker {
 			ssc = ServerSocketChannel.open();
 			ssc.configureBlocking(false);
 			
-			InetAddress hostAddr = InetAddress.getByName("localhost");
+			InetAddress hostAddr = InetAddress.getByName(host);
 			InetSocketAddress isa = new InetSocketAddress(hostAddr, port);
 			ssc.socket().bind(isa);
 			ssc.register(selector, SelectionKey.OP_ACCEPT);

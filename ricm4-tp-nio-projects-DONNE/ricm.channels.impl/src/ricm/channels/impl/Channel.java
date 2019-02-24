@@ -11,39 +11,39 @@ public class Channel implements IChannel {
 	Reader r;
 	Writer w;
 	IChannelListener l;
+	boolean closed;
 	
 	public Channel (SelectionKey key) {
 		w = new Writer(key);
-		r = new Reader(key, w);
+		r = new Reader(key, this);
+		closed = false;
 	}
 	
 	@Override
 	public void setListener(IChannelListener l) {
 		this.l = l;
+		r.setListener(l);
 	}
 
 	@Override
 	public void send(byte[] bytes, int offset, int count) {
-		// TODO Auto-generated method stub
-
+		w.sendMsg(bytes, offset, count);
 	}
 
 	@Override
 	public void send(byte[] bytes) {
-		// TODO Auto-generated method stub
-
+		w.sendMsg(bytes);
 	}
 
 	@Override
 	public void close() {
-		// TODO Auto-generated method stub
-
+		if(!closed)
+			closed = true;
 	}
 
 	@Override
 	public boolean closed() {
-		// TODO Auto-generated method stub
-		return false;
+		return closed;
 	}
 
 	public void handleWrite(SelectionKey key) throws IOException {

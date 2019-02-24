@@ -7,6 +7,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.security.MessageDigest;
 
+import ricm.channels.IChannel;
+import ricm.channels.IChannelListener;
+
 public class Reader {
 
 	private final int NBBYTELEN = 4;
@@ -22,16 +25,21 @@ public class Reader {
 	ByteBuffer buffLength;	// Buffer pour la longueur du message
 	ByteBuffer buffMsg;		// Buffer pour le message
 	
-	Writer w;
+	IChannel c;
+	IChannelListener l;
 	
 	byte[] digest;			// Tableau pour le checksum
 	
-	public Reader(SelectionKey key, Writer w) {
+	public Reader(SelectionKey key, IChannel c) {
 		this.key = key;
 		state = State.LEN;
 		count = 0;
 		buffLength = ByteBuffer.allocate(NBBYTELEN);
-		this.w = w;
+		this.c = c;
+	}
+	
+	public void setListener(IChannelListener l) {
+		this.l = l;
 	}
 
 	public void handleRead(SelectionKey key) throws IOException {
@@ -75,6 +83,9 @@ public class Reader {
 				
 				state = State.LEN;
 				
+				key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+				
+				l.received(c, data);
 			} else {
 				key.interestOps(SelectionKey.OP_READ);
 			}
@@ -121,5 +132,4 @@ public class Reader {
 	public void setDigest(byte[] digest) {
 		this.digest = digest;		
 	}
-
 }

@@ -1,10 +1,9 @@
 package ricm.channels.echo;
 
-import ricm.channels.impl.local.*;
+import ricm.channels.impl.*;
 
 public class LocalMain {
 
-	static Executor e;
 	static Broker sb,cb;
 	static EchoServer s,c;
 	
@@ -14,9 +13,8 @@ public class LocalMain {
 	 * using the local implementation.
 	 */
 	private static void initMiddleware() {
-		e = new Executor();
-		sb = new Broker(e, "server");
-		cb = new Broker(e, "client");
+		sb = new Broker("localHost");
+		cb = new Broker("client");
 	}
 
 
@@ -30,11 +28,10 @@ public class LocalMain {
 		EchoServer s = new EchoServer(sb);
 		EchoClient c = new EchoClient(cb);
 		
-		/*
-		 * Capture the main thread, entering 
-		 * the event loop of the executor.
-		 */
-		e.loop();
+		Thread ts = new Thread(sb);
+		Thread tc = new Thread(cb);
+		ts.start();
+		tc.start();
 		
 		System.out.println("Bye.");
 	}

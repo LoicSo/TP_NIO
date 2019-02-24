@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.LinkedList;
 
 public class Writer {
 
@@ -19,23 +20,48 @@ public class Writer {
 	
 	ByteBuffer buffLength;	// Buffer pour la longueur du message
 	ByteBuffer buffMsg;		// Buffer pour le message
+	
+	LinkedList<ByteBuffer> listMsg;	// Liste des messages à envoyer
 
 	public Writer(SelectionKey key) {
 		this.key = key;
 		state = State.LEN;
 		count = 0;
 		buffLength = ByteBuffer.allocate(NBBYTELEN);
+		listMsg = new LinkedList<ByteBuffer>();
 	}
 
 	public void sendMsg(byte[] msg) {
 		
-		buffMsg = ByteBuffer.wrap(msg, 0, msg.length);
+		ByteBuffer message = ByteBuffer.wrap(msg, 0, msg.length);
 		
-		lengthMsg = buffMsg.capacity();
-		buffLength.rewind();
-		buffLength.putInt(lengthMsg);
-		buffLength.rewind();
+		if(listMsg.isEmpty()) {
+			buffMsg = message; 
 		
+			lengthMsg = buffMsg.capacity();
+			buffLength.rewind();
+			buffLength.putInt(lengthMsg);
+			buffLength.rewind();
+		}
+		listMsg.add(message);
+		
+		key.interestOps(SelectionKey.OP_WRITE | SelectionKey.OP_READ);
+	}
+	
+	public void sendMsg(byte[] msg, int offset, int count) {
+		
+		ByteBuffer message = ByteBuffer.wrap(msg, offset, count);
+		
+		if(listMsg.isEmpty()) {
+			buffMsg = message;
+					
+			lengthMsg = buffMsg.capacity();
+			buffLength.rewind();
+			buffLength.putInt(lengthMsg);
+			buffLength.rewind();
+		}
+		listMsg.add(message);
+
 		key.interestOps(SelectionKey.OP_WRITE | SelectionKey.OP_READ);
 	}
 
@@ -66,6 +92,16 @@ public class Writer {
 				count = 0;
 				
 				state = State.LEN;
+				
+				listMsg.remove();
+				if(!listMsg.isEmpty()) {
+					buffMsg = listMsg.get(0);
+					
+					lengthMsg = buffMsg.capacity();
+					buffLength.rewind();
+					buffLength.putInt(lengthMsg);
+					buffLength.rewind();
+				}
 				key.interestOps(SelectionKey.OP_READ);
 			} else {
 				key.interestOps(SelectionKey.OP_WRITE);

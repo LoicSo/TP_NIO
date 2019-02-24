@@ -1,6 +1,6 @@
 package ricm.channels.fileserver;
 
-import ricm.channels.impl.local.*;
+import ricm.channels.impl.*;
 
 /*
  * This is part of the samples to show how to use
@@ -15,8 +15,7 @@ import ricm.channels.impl.local.*;
  */
 public class LocalMain {
 
-	static int port = 80;
-	static Executor e;
+	static int port = 8080;
 	static Broker sb, cb;
 	static FileServer s;
 	static FileDownloader c;
@@ -26,9 +25,8 @@ public class LocalMain {
 	 * using the local implementation.
 	 */
 	private static void initMiddleware() {
-		e = new Executor();
-		sb = new Broker(e, "server");
-		cb = new Broker(e, "client");
+		sb = new Broker("localHost");
+		cb = new Broker("client");
 	}
 
 	/*
@@ -36,7 +34,7 @@ public class LocalMain {
 	 */
 
 	private static void initFileServer() throws Exception {
-		String folder = "applications";
+		String folder = "echo";
 		s = new FileServer(sb, folder, port);
 	}
 
@@ -50,7 +48,7 @@ public class LocalMain {
 
 		// Download a file
 		String filename = "ricm/channels/echo/EchoClient.java";
-		c.download("server", port, filename, true);
+		c.download("localHost", port, filename, true);
 
 	}
 
@@ -61,12 +59,11 @@ public class LocalMain {
 		initFileServer();
 		
 		initFileDownloader();
-
-		/*
-		 * Capture the main thread, entering 
-		 * the event loop of the executor.
-		 */
-		e.loop();
+		
+		Thread ts = new Thread(sb);
+		Thread tc = new Thread(cb);
+		ts.start();
+		tc.start();
 		
 		System.out.println("Bye.");
 	}

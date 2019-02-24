@@ -14,7 +14,7 @@ public class EchoClient implements IBrokerListener, IChannelListener {
 	EchoClient(IBroker b) {
 		broker = b;
 		b.setListener(this);
-		b.connect("server", 8080);
+		b.connect("localHost", 8080);
 	}
 
 	@Override
