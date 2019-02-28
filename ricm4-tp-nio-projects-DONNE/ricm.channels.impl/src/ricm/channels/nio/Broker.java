@@ -1,4 +1,4 @@
-package ricm.channels.impl;
+package ricm.channels.nio;
 
 import java.io.IOException;
 import java.net.InetAddress;

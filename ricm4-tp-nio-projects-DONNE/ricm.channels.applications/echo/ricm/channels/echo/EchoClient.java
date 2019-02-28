@@ -41,6 +41,7 @@ public class EchoClient implements IBrokerListener, IChannelListener {
 		else {
 			System.out.println("Client closing its channel");
 			c.close();
+			System.exit(0);
 		}
 	}
 

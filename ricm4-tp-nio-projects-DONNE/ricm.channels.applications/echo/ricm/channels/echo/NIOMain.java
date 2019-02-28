@@ -1,8 +1,8 @@
 package ricm.channels.echo;
 
-import ricm.channels.impl.*;
+import ricm.channels.nio.*;
 
-public class LocalMain {
+public class NIOMain {
 
 	static Broker sb,cb;
 	static EchoServer s,c;

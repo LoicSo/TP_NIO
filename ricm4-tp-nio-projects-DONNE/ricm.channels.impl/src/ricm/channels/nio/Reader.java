@@ -1,11 +1,9 @@
-package ricm.channels.impl;
+package ricm.channels.nio;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.security.MessageDigest;
 
 import ricm.channels.IChannel;
 import ricm.channels.IChannelListener;
@@ -91,45 +89,5 @@ public class Reader {
 			}
 			break;
 		}
-	}
-	
-	/*
-	 * Wikipedia: The MD5 message-digest algorithm is a widely used hash function
-	 * producing a 128-bit hash value. Although MD5 was initially designed to be
-	 * used as a cryptographic hash function, it has been found to suffer from
-	 * extensive vulnerabilities. It can still be used as a checksum to verify data
-	 * integrity, but only against unintentional corruption. It remains suitable for
-	 * other non-cryptographic purposes, for example for determining the partition
-	 * for a particular key in a partitioned database.
-	 */
-	public static byte[] md5(byte[] bytes) throws IOException {
-		byte[] digest = null;
-		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			md.update(bytes, 0, bytes.length);
-			digest = md.digest();
-		} catch (Exception ex) {
-			throw new IOException(ex);
-		}
-		return digest;
-	}
-
-	public static boolean md5check(byte[] d1, byte[] d2) {
-		if (d1.length != d2.length)
-			return false;
-		for (int i = 0; i < d1.length; i++)
-			if (d1[i] != d2[i])
-				return false;
-		return true;
-	}
-
-	public static void echo(PrintStream ps, byte[] digest) {
-		for (int i = 0; i < digest.length; i++)
-			ps.print(digest[i] + ", ");
-		ps.println();
-	}
-
-	public void setDigest(byte[] digest) {
-		this.digest = digest;		
 	}
 }

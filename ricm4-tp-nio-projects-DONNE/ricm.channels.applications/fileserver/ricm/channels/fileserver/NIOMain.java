@@ -1,6 +1,6 @@
 package ricm.channels.fileserver;
 
-import ricm.channels.impl.*;
+import ricm.channels.nio.*;
 
 /*
  * This is part of the samples to show how to use
@@ -13,7 +13,7 @@ import ricm.channels.impl.*;
  * single Java Runtime Environment, using a single
  * middleware.
  */
-public class LocalMain {
+public class NIOMain {
 
 	static int port = 8080;
 	static Broker sb, cb;
