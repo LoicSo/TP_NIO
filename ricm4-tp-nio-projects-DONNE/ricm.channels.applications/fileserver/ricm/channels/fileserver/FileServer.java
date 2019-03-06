@@ -26,9 +26,14 @@ public class FileServer implements IBrokerListener, IChannelListener {
 	String folder;
 	int port;
 
+	final int CHUNK_SIZE = 512;
+	File f;
+	FileInputStream fis;
+	int next_byte_read;
+
 	void panic(String msg, Exception ex) {
 		ex.printStackTrace(System.err);
-		System.err.println("PANIC: "+msg);
+		System.err.println("PANIC: " + msg);
 		System.exit(-1);
 	}
 
@@ -36,44 +41,51 @@ public class FileServer implements IBrokerListener, IChannelListener {
 		this.port = port;
 		this.engine = engine;
 		this.folder = folder;
+
+		next_byte_read = 0;
+
 		if (!folder.endsWith(File.separator))
 			this.folder = folder + File.separator;
 		this.engine.setListener(this);
 		if (!this.engine.accept(port)) {
-			System.err.println("Refused accept on "+port);
+			System.err.println("Refused accept on " + port);
 			System.exit(-1);
 		}
 	}
 
-	byte[] readFile(String filename) {
-		File f = new File(folder + filename);
-		if (!f.exists() || !f.isFile())
-			return null;
+	byte[] readFile() {
+
+		int nread;
+		int r;
 		byte[] bytes;
-		int nbytes = (int) f.length();
-		try {
-			FileInputStream fis;
-			fis = new FileInputStream(f);
+		bytes = new byte[Math.min((int) f.length() - next_byte_read, CHUNK_SIZE)];
+		
+		for (nread = 0; nread < bytes.length;) {
 			try {
-				bytes = new byte[nbytes];
-				for (int nread = 0; nread < f.length();) {
-					int r;
-					try {
-						r = fis.read(bytes, nread, nbytes - nread);
-						nread += r;
-					} catch (IOException e) {
-						return null;
-					}
-				}
-			} finally {
-				fis.close();
+				r = fis.read(bytes, nread, bytes.length - nread);
+				nread += r;
+			} catch (IOException e) {
+				return null;
 			}
-		} catch (FileNotFoundException e) {
-			return null;
-		} catch (IOException e) {
-			return null;
 		}
+		
+		next_byte_read += nread;
+		
 		return bytes;
+	}
+
+	private int openFile(String filename) {
+		f = new File(folder + filename);
+		if (!f.exists() || !f.isFile())
+			return -2;
+
+		try {
+			fis = new FileInputStream(f);
+		} catch (FileNotFoundException e) {
+			return -2;
+		}
+
+		return (int) f.length();
 	}
 
 	/**
@@ -98,24 +110,31 @@ public class FileServer implements IBrokerListener, IChannelListener {
 					filename = dis.readUTF();
 					System.out.println("FileServer - Receive request for downloading: " + filename);
 				} catch (Exception ex) {
-					dos.writeInt(-1); // could not parse the request
+					dos.writeInt(-1); // could not parse the downloading request
 					return;
 				}
-				byte[] bytes;
-				bytes = readFile(filename);
-				if (bytes == null) {
-					dos.writeInt(-2); // requested file does not exist
-				} else {
-					dos.writeInt(bytes.length);
-					dos.write(bytes);
+
+				int file_len = openFile(filename);
+				dos.writeInt(file_len);
+				byte[] bLen = os.toByteArray();
+				channel.send(bLen);
+
+				if (file_len > 0) {
+					while (next_byte_read < file_len) {
+						byte[] bytes = readFile();
+						dos.write(bytes);
+						channel.send(bytes);
+					}
 				}
+
 			} catch (IOException ex) {
 				ex.printStackTrace(System.err);
 				dos.writeInt(-3);
-			} finally {
-				dos.close();
 				byte[] bytes = os.toByteArray();
 				channel.send(bytes);
+			} finally {
+				dos.close();
+				
 			}
 		} catch (Exception ex) {
 			panic("unexpected exception", ex);
