@@ -92,9 +92,9 @@ public class FileDownloader implements IBrokerListener, IChannelListener {
 		case LEN:
 			try {
 				nbytes = dis.readInt();
-				if (nbytes < 0) {
+				if (nbytes <= 0) {
 					System.out.println("Server returns an error code: " + nbytes);
-					return;
+					System.exit(-1);
 				} else {
 					System.out.println("Download " + nbytes + " bytes");
 					state = State.MSG;
