@@ -111,19 +111,21 @@ public class FileServer implements IBrokerListener, IChannelListener {
 					System.out.println("FileServer - Receive request for downloading: " + filename);
 				} catch (Exception ex) {
 					dos.writeInt(-1); // could not parse the downloading request
+					byte[] bytes = os.toByteArray();
+					channel.send(bytes);	
 					return;
 				}
 
 				int file_len = openFile(filename);
+				
 				dos.writeInt(file_len);
 				byte[] bLen = os.toByteArray();
 				channel.send(bLen);
-
-				if (file_len > 0) {
+				
+				if(file_len > 0) {
 					while (next_byte_read < file_len) {
-						byte[] bytes = readFile();
-						dos.write(bytes);
-						channel.send(bytes);
+						byte[] bChunk = readFile();
+						channel.send(bChunk);
 					}
 				}
 
@@ -131,10 +133,10 @@ public class FileServer implements IBrokerListener, IChannelListener {
 				ex.printStackTrace(System.err);
 				dos.writeInt(-3);
 				byte[] bytes = os.toByteArray();
-				channel.send(bytes);
-			} finally {
-				dos.close();
+				channel.send(bytes);	
 				
+			} finally {
+				dos.close();		
 			}
 		} catch (Exception ex) {
 			panic("unexpected exception", ex);

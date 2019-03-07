@@ -4,7 +4,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 
 import ricm.channels.IBroker;
 import ricm.channels.IBrokerListener;
@@ -12,6 +15,17 @@ import ricm.channels.IChannel;
 import ricm.channels.IChannelListener;
 
 public class FileDownloader implements IBrokerListener, IChannelListener {
+
+	final int CHUNK_SIZE = 512;
+
+	enum State {
+		LEN, MSG
+	};
+
+	private State state;
+	int count = 0;
+	int nbytes;
+	String txt = "";
 
 	String server;
 	int port;
@@ -22,13 +36,14 @@ public class FileDownloader implements IBrokerListener, IChannelListener {
 	public FileDownloader(IBroker engine) {
 		this.engine = engine;
 		this.engine.setListener(this);
+		state = State.LEN;
 	}
 
 	public void download(String hostname, int port, String filename, boolean isText) throws Exception {
 		this.filename = filename;
 		this.isText = isText;
 		if (!this.engine.connect(hostname, port)) {
-			System.err.println("Refused connect on "+port);
+			System.err.println("Refused connect on " + port);
 			System.exit(-1);
 		}
 	}
@@ -67,38 +82,61 @@ public class FileDownloader implements IBrokerListener, IChannelListener {
 	@Override
 	public void received(IChannel c, byte[] reply) {
 		System.out.println("===============================================================");
-		System.out.println("Received:");
+		System.out.println("Received: " + reply.length + " bytes");
 		System.out.println("===============================================================");
 
 		InputStream is = new ByteArrayInputStream(reply);
 		DataInputStream dis = new DataInputStream(is);
-		try {
-			int nbytes = dis.readInt();
-			if (nbytes < 0)
-				System.out.println("Server returns an error code: " + nbytes);
-			else {
-				System.out.println("Download " + nbytes + " bytes");
-				byte[] bytes = new byte[nbytes];
-				dis.readFully(bytes);
-				if (isText) {
-					String txt = new String(bytes, "UTF-8");
-					System.out.println(txt);
+
+		switch (state) {
+		case LEN:
+			try {
+				nbytes = dis.readInt();
+				if (nbytes < 0) {
+					System.out.println("Server returns an error code: " + nbytes);
+					return;
+				} else {
+					System.out.println("Download " + nbytes + " bytes");
+					state = State.MSG;
 				}
+			} catch (Exception e) {
+				System.out.println(" failed parsing the received message");
+				e.printStackTrace();
 			}
-		} catch (Exception ex) {
-			System.out.println(" failed parsing the received message");
-			ex.printStackTrace();
+			break;
+
+		case MSG:
+
+			try {
+				count += reply.length;
+
+				if (isText) {
+					txt += new String(reply, "UTF-8");
+				}
+
+				if (count == nbytes) {
+					System.out.println(txt);
+					state = State.LEN;
+
+					System.out.println("===============================================================");
+					System.out.println("\n\nBye");
+					c.close();
+					System.exit(0);
+				}
+
+			} catch (IOException e) {
+				System.out.println(" failed parsing the received message");
+				e.printStackTrace();
+			}
+			break;
 		}
-		System.out.println("===============================================================");
-		System.out.println("\n\nBye");
-		c.close();
-		System.exit(0);
+
 	}
 
 	@Override
 	public void closed(IChannel c, Exception e) {
 		System.out.println("Unexpected closed channel");
-		if (e!=null)
+		if (e != null)
 			e.printStackTrace();
 		System.exit(-1);
 	}
